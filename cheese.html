@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiss Cheese Model Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+        }
+        #diagram {
+            border: 1px solid #ccc;
+            background-color: white;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Swiss Cheese Model Diagram Generator</h1>
+        <div class="controls">
+            <input type="text" id="diagramTitle" placeholder="Enter diagram title">
+        </div>
+        <svg id="diagram" width="1000" height="400"></svg>
+        <div class="controls">
+            <input type="text" id="sliceTitle" placeholder="Enter slice title">
+            <button onclick="addSlice()">Add Slice</button>
+            <button onclick="removeSlice()">Remove Slice</button>
+            <button onclick="downloadSVG()">Download SVG</button>
+            <button onclick="downloadPNG()">Download PNG</button>
+        </div>
+        <p>Generated with assistance from Claude 3.5 Sonnet</p>
+    </div>
+
+    <script>
+        const svg = document.getElementById('diagram');
+        const slices = [];
+        const sliceWidth = 120;
+        const sliceHeight = 300;
+        const sliceColor = '#FFE135';
+        const holeColor = '#FFFFFF';
+        const bugColor = '#FF0000';
+        let bugs = [];
+        const totalBugs = 20;
+
+        function createCheeseSlicePath(x, y, width, height) {
+            const waviness = 5;
+            let path = `M ${x} ${y}`;
+            path += `L ${x + width} ${y}`;
+            for (let i = 0; i <= height; i += 20) {
+                path += ` Q ${x + width + Math.random() * waviness} ${y + i}, ${x + width} ${y + i + 10}`;
+            }
+            path += `L ${x} ${y + height}`;
+            for (let i = height; i >= 0; i -= 20) {
+                path += ` Q ${x - Math.random() * waviness} ${y + i}, ${x} ${y + i - 10}`;
+            }
+            path += ' Z';
+            return path;
+        }
+
+        function addSlice() {
+            if (slices.length >= 6) return;
+            
+            const x = 50 + slices.length * (sliceWidth + 20);
+            const slice = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            
+            const cheesePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            cheesePath.setAttribute('d', createCheeseSlicePath(x, 50, sliceWidth, sliceHeight));
+            cheesePath.setAttribute('fill', sliceColor);
+            slice.appendChild(cheesePath);
+
+            for (let i = 0; i < 5; i++) {
+                const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                ellipse.setAttribute('cx', x + 10 + Math.random() * (sliceWidth - 20));
+                ellipse.setAttribute('cy', 70 + Math.random() * (sliceHeight - 40));
+                ellipse.setAttribute('rx', 5 + Math.random() * 10);
+                ellipse.setAttribute('ry', 3 + Math.random() * 7);
+                ellipse.setAttribute('fill', holeColor);
+                slice.appendChild(ellipse);
+            }
+
+            const titleInput = document.getElementById('sliceTitle');
+            const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            title.setAttribute('x', x + sliceWidth / 2);
+            title.setAttribute('y', '40');
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('font-size', '12');
+            title.textContent = titleInput.value || `Slice ${slices.length + 1}`;
+            slice.appendChild(title);
+
+            svg.appendChild(slice);
+            slices.push(slice);
+            titleInput.value = '';
+
+            updateBugs();
+            updateDiagramTitle();
+        }
+
+        function removeSlice() {
+            if (slices.length > 0) {
+                const slice = slices.pop();
+                svg.removeChild(slice);
+                updateBugs();
+            }
+        }
+
+        function updateBugs() {
+            bugs.forEach(bug => svg.removeChild(bug));
+            bugs = [];
+
+            for (let i = 0; i < totalBugs; i++) {
+                const bug = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                const sliceIndex = Math.min(Math.floor(i / (totalBugs / (slices.length + 1))), slices.length);
+                const x = 20 + Math.random() * 30 + sliceIndex * (sliceWidth + 20);
+                const y = 50 + Math.random() * 300;
+                bug.setAttribute('cx', x);
+                bug.setAttribute('cy', y);
+                bug.setAttribute('r', 3);
+                bug.setAttribute('fill', bugColor);
+                svg.appendChild(bug);
+                bugs.push(bug);
+            }
+        }
+
+        function updateDiagramTitle() {
+            const existingTitle = svg.querySelector('#diagramTitle');
+            if (existingTitle) {
+                svg.removeChild(existingTitle);
+            }
+
+            const titleInput = document.getElementById('diagramTitle');
+            const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            title.setAttribute('id', 'diagramTitle');
+            title.setAttribute('x', '500');
+            title.setAttribute('y', '25');
+            title.setAttribute('text-anchor', 'middle');
+            title.setAttribute('font-size', '16');
+            title.setAttribute('font-weight', 'bold');
+            title.textContent = titleInput.value || 'Swiss Cheese Model';
+            svg.insertBefore(title, svg.firstChild);
+        }
+
+        function downloadSVG() {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = svgUrl;
+            downloadLink.download = 'swiss_cheese_model.svg';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function downloadPNG() {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement("canvas");
+            canvas.width = 800;
+            canvas.height = 400;
+            const ctx = canvas.getContext("2d");
+            const img = new Image();
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                const pngFile = canvas.toDataURL("image/png");
+                const downloadLink = document.createElement("a");
+                downloadLink.download = "swiss_cheese_model.png";
+                downloadLink.href = pngFile;
+                downloadLink.click();
+            }
+            img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+        }
+
+        document.getElementById('diagramTitle').addEventListener('input', updateDiagramTitle);
+
+        // Initialize with one slice
+        addSlice();
+    </script>
+    </br>
+</body>
+</html>
